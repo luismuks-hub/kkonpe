@@ -1,18 +1,17 @@
 // netlify/functions/onpe.js
-// Uso: /.netlify/functions/onpe?endpoint=proceso
-//       /.netlify/functions/onpe?endpoint=candidatos&idEleccion=1
-//       /.netlify/functions/onpe?endpoint=totales&idEleccion=1
-
-const ONPE_BASE = 'https://resultadosegundavuelta.onpe.gob.pe/presentacion-backend';
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Content-Type': 'application/json',
+};
 
 const CHROME_HEADERS = {
   'Accept': 'application/json, text/plain, */*',
   'Accept-Language': 'es-PE,es;q=0.9,en;q=0.8',
   'Cache-Control': 'no-cache',
   'Connection': 'keep-alive',
-  'Origin': 'https://resultadosegundavuelta.onpe.gob.pe',
   'Pragma': 'no-cache',
-  'Referer': 'https://resultadosegundavuelta.onpe.gob.pe/main/resumen',
   'Sec-Fetch-Dest': 'empty',
   'Sec-Fetch-Mode': 'cors',
   'Sec-Fetch-Site': 'same-origin',
@@ -22,12 +21,26 @@ const CHROME_HEADERS = {
   'sec-ch-ua-platform': '"Windows"',
 };
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Content-Type': 'application/json',
+const BASES = [
+  { base: 'https://resultadosegundavuelta.onpe.gob.pe', referer: 'https://resultadosegundavuelta.onpe.gob.pe/main/resumen', origin: 'https://resultadosegundavuelta.onpe.gob.pe' },
+  { base: 'https://segundavuelta.onpe.gob.pe',          referer: 'https://segundavuelta.onpe.gob.pe/',                       origin: 'https://segundavuelta.onpe.gob.pe' },
+];
+
+const PATHS = {
+  proceso:    '/presentacion-backend/proceso/proceso-electoral-activo',
+  candidatos: (id) => `/presentacion-backend/candidatos/candidatos-segunda-vuelta?idEleccion=${id}&tipoFiltro=eleccion`,
+  totales:    (id) => `/presentacion-backend/totales/totales-segunda-vuelta?idEleccion=${id}&tipoFiltro=eleccion`,
 };
+
+async function tryFetch(url, referer, origin) {
+  const headers = { ...CHROME_HEADERS, 'Referer': referer, 'Origin': origin };
+  const res = await fetch(url, { method: 'GET', headers });
+  const text = await res.text();
+  if (text.trim().startsWith('<')) {
+    throw new Error(`HTML recibido (status ${res.status})`);
+  }
+  return JSON.parse(text);
+}
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') {
@@ -38,47 +51,30 @@ exports.handler = async (event) => {
   const endpoint = p.endpoint || '';
   const id = p.idEleccion || '1';
 
-  // Construir URL de ONPE según el endpoint solicitado
-  let onpeUrl;
-  if (endpoint === 'proceso') {
-    onpeUrl = `${ONPE_BASE}/proceso/proceso-electoral-activo`;
-  } else if (endpoint === 'candidatos') {
-    onpeUrl = `${ONPE_BASE}/candidatos/candidatos-segunda-vuelta?idEleccion=${id}&tipoFiltro=eleccion`;
-  } else if (endpoint === 'totales') {
-    onpeUrl = `${ONPE_BASE}/totales/totales-segunda-vuelta?idEleccion=${id}&tipoFiltro=eleccion`;
-  } else {
-    return {
-      statusCode: 400,
-      headers: CORS_HEADERS,
-      body: JSON.stringify({ error: 'endpoint inválido. Usa: proceso, candidatos, totales' }),
-    };
+  if (!['proceso', 'candidatos', 'totales'].includes(endpoint)) {
+    return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'endpoint invalido' }) };
   }
 
-  console.log(`[onpe-proxy] ${endpoint} → ${onpeUrl}`);
+  const pathFn = PATHS[endpoint];
+  const path = typeof pathFn === 'function' ? pathFn(id) : pathFn;
 
-  try {
-    const response = await fetch(onpeUrl, { method: 'GET', headers: CHROME_HEADERS });
-
-    if (!response.ok) {
+  const errors = [];
+  for (const { base, referer, origin } of BASES) {
+    try {
+      const data = await tryFetch(base + path, referer, origin);
       return {
-        statusCode: response.status,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ error: `ONPE respondió ${response.status}` }),
+        statusCode: 200,
+        headers: { ...CORS_HEADERS, 'Cache-Control': 'no-cache, no-store' },
+        body: JSON.stringify(data),
       };
+    } catch (e) {
+      errors.push(`${base}: ${e.message}`);
     }
-
-    const data = await response.text();
-    return {
-      statusCode: 200,
-      headers: { ...CORS_HEADERS, 'Cache-Control': 'no-cache, no-store' },
-      body: data,
-    };
-  } catch (err) {
-    console.error('[onpe-proxy] Error:', err.message);
-    return {
-      statusCode: 502,
-      headers: CORS_HEADERS,
-      body: JSON.stringify({ error: err.message }),
-    };
   }
+
+  return {
+    statusCode: 502,
+    headers: CORS_HEADERS,
+    body: JSON.stringify({ error: 'ONPE bloqueó todos los intentos', detalle: errors }),
+  };
 };
