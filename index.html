@@ -601,8 +601,6 @@
 // Las llamadas van a /api/onpe/... (nuestra Netlify Function)
 // que hace el proxy hacia ONPE con headers de Chrome correctos.
 // Así no hay CORS ni fingerprinting desde el browser.
-// Llamamos directo a la Netlify Function con ?endpoint=... 
-// Sin redirects, sin path routing — funciona siempre.
 const FN = '/.netlify/functions/onpe';
 const ENDPOINTS = {
   proceso:    `${FN}?endpoint=proceso`,
