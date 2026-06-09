@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monitor Electoral ONPE — Segunda Vuelta 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #080d1a;
+    --bg-card: #0e1628;
+    --bg-card2: #111c33;
+    --border: #1e2d4a;
+    --keiko: #e85c38;
+    --keiko-dim: #7a3020;
+    --sanchez: #2ec882;
+    --sanchez-dim: #17623f;
+    --text: #e8edf5;
+    --muted: #5a6a85;
+    --label: #8892a4;
+    --white: #ffffff;
+    --accent: #f0b429;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    padding: 24px 16px 48px;
+  }
+
+  /* ── HEADER ── */
+  header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  .eyebrow {
+    font-family: 'Space Grotesk', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(20px, 4vw, 32px);
+    font-weight: 700;
+    color: var(--white);
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+  .subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  /* ── STATUS BAR ── */
+  .status-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 12px;
+    color: var(--label);
+    font-family: 'Space Grotesk', monospace;
+  }
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+  }
+  .dot.live { background: var(--sanchez); animation: pulse 1.8s infinite; }
+  .dot.error { background: var(--keiko); }
+  @keyframes pulse {
+    0%,100% { opacity:1; transform:scale(1); }
+    50% { opacity:0.5; transform:scale(0.8); }
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .container { max-width: 960px; margin: 0 auto; }
+
+  /* ── TENSION BAR (signature element) ── */
+  .tension-wrap {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 24px 24px;
+    margin-bottom: 20px;
+  }
+  .tension-label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    align-items: flex-end;
+  }
+  .cand-name {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(13px, 2.5vw, 16px);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .cand-name.keiko { color: var(--keiko); }
+  .cand-name.sanchez { color: var(--sanchez); }
+  .cand-party {
+    font-size: 10px;
+    color: var(--muted);
+    font-weight: 400;
+    display: block;
+    margin-top: 2px;
+  }
+  .cand-pct {
+    font-family: 'Space Grotesk', monospace;
+    font-size: clamp(22px, 5vw, 40px);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+  .cand-pct.keiko { color: var(--keiko); }
+  .cand-pct.sanchez { color: var(--sanchez); }
+
+  .bar-outer {
+    height: 28px;
+    border-radius: 14px;
+    background: #0a1020;
+    overflow: hidden;
+    display: flex;
+    position: relative;
+    border: 1px solid var(--border);
+  }
+  .bar-keiko {
+    height: 100%;
+    background: linear-gradient(90deg, var(--keiko-dim), var(--keiko));
+    transition: width 0.9s cubic-bezier(0.4,0,0.2,1);
+    border-radius: 14px 0 0 14px;
+  }
+  .bar-sanchez {
+    height: 100%;
+    background: linear-gradient(90deg, var(--sanchez), var(--sanchez-dim));
+    transition: width 0.9s cubic-bezier(0.4,0,0.2,1);
+    flex: 1;
+    border-radius: 0 14px 14px 0;
+  }
+  .bar-midline {
+    position: absolute;
+    left: 50%;
+    top: 0; bottom: 0;
+    width: 2px;
+    background: var(--bg);
+    transform: translateX(-50%);
+    z-index: 2;
+  }
+
+  .tension-footer {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+    font-family: 'Space Grotesk', monospace;
+    font-size: 12px;
+    color: var(--label);
+  }
+
+  /* ── DIFF CARD ── */
+  .diff-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .diff-main {
+    text-align: center;
+    flex: 1;
+  }
+  .diff-label {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  .diff-value {
+    font-family: 'Space Grotesk', monospace;
+    font-size: clamp(28px, 6vw, 52px);
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    color: var(--accent);
+    transition: color 0.5s;
+    line-height: 1;
+  }
+  .diff-value.keiko-leads { color: var(--keiko); }
+  .diff-value.sanchez-leads { color: var(--sanchez); }
+  .diff-sublabel {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  .stat-item {
+    text-align: center;
+    padding: 0 16px;
+    border-left: 1px solid var(--border);
+  }
+  .stat-item:first-child { border-left: none; }
+  .stat-val {
+    font-family: 'Space Grotesk', monospace;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .stat-lbl {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* ── STATS ROW ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+  .stat-card .val {
+    font-family: 'Space Grotesk', monospace;
+    font-size: clamp(16px, 3vw, 22px);
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.2;
+  }
+  .stat-card .lbl {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* ── HISTORIAL ── */
+  .history-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+  }
+  .history-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--label);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+  .history-list::-webkit-scrollbar { width: 4px; }
+  .history-list::-webkit-scrollbar-track { background: transparent; }
+  .history-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .history-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 1fr 1fr;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--bg-card2);
+    font-family: 'Space Grotesk', monospace;
+    font-size: 12px;
+    color: var(--label);
+    transition: background 0.2s;
+  }
+  .history-row:first-child {
+    background: #141f38;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .history-row .keiko-col { color: var(--keiko); font-weight: 600; }
+  .history-row .sanchez-col { color: var(--sanchez); font-weight: 600; }
+  .history-row .diff-col { color: var(--accent); }
+  .history-head {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    padding: 4px 10px;
+    font-family: 'Inter', sans-serif;
+  }
+
+  /* ── CONTROLS ── */
+  .controls {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+  }
+  .controls-title {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  .controls-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+  .btn {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 20px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.01em;
+  }
+  .btn-primary {
+    background: var(--sanchez);
+    color: #001a0c;
+  }
+  .btn-primary:hover { background: #3fe89e; }
+  .btn-primary:active { transform: scale(0.97); }
+  .btn-secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--label);
+  }
+  .btn-secondary:hover { border-color: var(--muted); color: var(--text); }
+  .btn-danger {
+    background: transparent;
+    border: 1px solid var(--keiko-dim);
+    color: var(--keiko);
+  }
+  .btn-danger:hover { background: #3a1508; }
+
+  .interval-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+  .interval-group label {
+    font-size: 12px;
+    color: var(--label);
+    white-space: nowrap;
+  }
+  select, input[type=number] {
+    background: var(--bg-card2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Space Grotesk', monospace;
+    font-size: 13px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    outline: none;
+    width: 100px;
+  }
+  select:focus, input[type=number]:focus { border-color: var(--sanchez); }
+
+  /* ── ERROR / LOADING ── */
+  .message-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--label);
+    display: none;
+  }
+  .message-box.visible { display: block; }
+  .message-box.error { border-color: var(--keiko-dim); color: var(--keiko); }
+
+  /* ── COUNTDOWN ── */
+  .countdown-bar-wrap {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-top: 12px;
+    overflow: hidden;
+  }
+  .countdown-bar {
+    height: 100%;
+    background: var(--sanchez);
+    width: 100%;
+    transition: width linear;
+    border-radius: 2px;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center;
+    margin-top: 32px;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+  footer a { color: var(--label); text-decoration: none; }
+  footer a:hover { color: var(--text); }
+
+  /* ── LOADER SKELETON ── */
+  .skeleton {
+    background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card2) 50%, var(--bg-card) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 6px;
+    display: inline-block;
+  }
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  @media (max-width: 600px) {
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .diff-card { flex-direction: column; }
+    .stat-item { border-left: none; border-top: 1px solid var(--border); padding: 12px 0 0; }
+    .history-row { grid-template-columns: 70px 1fr 1fr 1fr; font-size: 11px; }
+    .interval-group { margin-left: 0; width: 100%; }
+    .controls-row { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <header>
+    <div class="eyebrow">Resultados Oficiales · ONPE · Segunda Vuelta</div>
+    <h1>Monitor Electoral 2026</h1>
+    <p class="subtitle">Datos en tiempo real desde la API oficial de la ONPE</p>
+  </header>
+
+  <!-- STATUS -->
+  <div class="status-row">
+    <div class="status-pill">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusText">Sin datos</span>
+    </div>
+    <div class="status-pill">
+      <span>Última actualización:</span>
+      <span id="lastUpdate" style="color:var(--text)">—</span>
+    </div>
+    <div class="status-pill">
+      <span id="countdownLabel">Próxima en: —</span>
+    </div>
+  </div>
+
+  <!-- TENSION BAR -->
+  <div class="tension-wrap">
+    <div class="tension-label">
+      <div>
+        <span class="cand-name keiko" id="keikoName">Keiko Fujimori</span>
+        <span class="cand-party">Fuerza Popular</span>
+      </div>
+      <div style="text-align:right">
+        <span class="cand-name sanchez" id="sanchezName">Roberto Sánchez</span>
+        <span class="cand-party" style="text-align:right;display:block">Juntos por el Perú</span>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
+      <span class="cand-pct keiko" id="keikoPct">—%</span>
+      <span style="font-size:11px;color:var(--muted);font-family:'Space Grotesk',monospace">VOTOS VÁLIDOS</span>
+      <span class="cand-pct sanchez" id="sanchezPct">—%</span>
+    </div>
+    <div class="bar-outer">
+      <div class="bar-keiko" id="barKeiko" style="width:50%"></div>
+      <div class="bar-midline"></div>
+      <div class="bar-sanchez" id="barSanchez" style="width:50%"></div>
+    </div>
+    <div class="tension-footer">
+      <span id="keikoVotos">— votos</span>
+      <span id="sanchezVotos">— votos</span>
+    </div>
+  </div>
+
+  <!-- DIFERENCIA -->
+  <div class="diff-card">
+    <div class="stat-item" style="border-left:none">
+      <div class="stat-val" id="actasPct">—%</div>
+      <div class="stat-lbl">Actas procesadas</div>
+    </div>
+    <div class="diff-main">
+      <div class="diff-label">Diferencia de votos</div>
+      <div class="diff-value" id="diffValue">—</div>
+      <div class="diff-sublabel" id="diffSublabel">votos de diferencia</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-val" id="totalActas">—</div>
+      <div class="stat-lbl">Total actas</div>
+    </div>
+  </div>
+
+  <!-- STATS ROW -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="val" id="keikoVotosAbs" style="color:var(--keiko)">—</div>
+      <div class="lbl">Votos Keiko</div>
+    </div>
+    <div class="stat-card">
+      <div class="val" id="totalVotos">—</div>
+      <div class="lbl">Total votos válidos</div>
+    </div>
+    <div class="stat-card">
+      <div class="val" id="sanchezVotosAbs" style="color:var(--sanchez)">—</div>
+      <div class="lbl">Votos Sánchez</div>
+    </div>
+  </div>
+
+  <!-- HISTORIAL -->
+  <div class="history-card">
+    <div class="history-title">
+      <span>Historial de consultas</span>
+      <span id="histCount" style="font-weight:400;font-size:11px;color:var(--muted)">0 registros</span>
+    </div>
+    <div class="history-row history-head">
+      <span>Hora</span><span>Keiko %</span><span>Sánchez %</span><span>Diferencia</span>
+    </div>
+    <div class="history-list" id="historyList">
+      <div style="text-align:center;padding:20px;color:var(--muted);font-size:12px">
+        Aún no hay datos. Haz clic en "Actualizar ahora".
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTROLES -->
+  <div class="controls">
+    <div class="controls-title">Control de actualización automática</div>
+    <div class="controls-row">
+      <button class="btn btn-primary" onclick="fetchData()">⟳ Actualizar ahora</button>
+      <button class="btn btn-secondary" id="autoBtn" onclick="toggleAuto()">▶ Iniciar auto-actualización</button>
+      <button class="btn btn-secondary" onclick="clearHistory()">Limpiar historial</button>
+      <div class="interval-group">
+        <label>Cada</label>
+        <input type="number" id="intervalInput" value="5" min="1" max="60" style="width:70px">
+        <label>minutos</label>
+      </div>
+    </div>
+    <div class="countdown-bar-wrap" id="countdownWrap" style="display:none">
+      <div class="countdown-bar" id="countdownBar"></div>
+    </div>
+  </div>
+
+  <!-- ERROR BOX -->
+  <div class="message-box" id="errorBox"></div>
+
+  <footer>
+    Fuente: <a href="https://resultadosegundavuelta.onpe.gob.pe/main/resumen" target="_blank">resultadosegundavuelta.onpe.gob.pe</a>
+    · Los datos se obtienen directamente desde la API oficial de la ONPE.<br>
+    Monitor independiente — solo lectura. No afilia ni modifica datos electorales.
+  </footer>
+
+</div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+// Las llamadas van a /api/onpe/... (nuestra Netlify Function)
+// que hace el proxy hacia ONPE con headers de Chrome correctos.
+// Así no hay CORS ni fingerprinting desde el browser.
+// Llamamos directo a la Netlify Function con ?endpoint=... 
+// Sin redirects, sin path routing — funciona siempre.
+const FN = '/.netlify/functions/onpe';
+const ENDPOINTS = {
+  proceso:    `${FN}?endpoint=proceso`,
+  candidatos: (id) => `${FN}?endpoint=candidatos&idEleccion=${id}`,
+  totales:    (id) => `${FN}?endpoint=totales&idEleccion=${id}`,
+};
+
+// ── STATE ───────────────────────────────────────────────────────────────────
+let idEleccion = null;
+let autoTimer = null;
+let countdownInterval = null;
+let history = [];
+let isAuto = false;
+
+// ── HELPERS ─────────────────────────────────────────────────────────────────
+const fmt = (n) => n == null ? '—' : Number(n).toLocaleString('es-PE');
+const fmtPct = (n) => n == null ? '—' : Number(n).toFixed(3) + '%';
+const nowStr = () => new Date().toLocaleTimeString('es-PE', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+
+function setStatus(state, msg) {
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+  dot.className = 'dot ' + (state === 'live' ? 'live' : state === 'error' ? 'error' : '');
+  txt.textContent = msg;
+}
+
+function showError(msg) {
+  const box = document.getElementById('errorBox');
+  box.textContent = '⚠ ' + msg;
+  box.className = 'message-box error visible';
+}
+
+function hideError() {
+  document.getElementById('errorBox').className = 'message-box';
+}
+
+// ── FETCH PIPELINE ───────────────────────────────────────────────────────────
+async function apiFetch(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+async function getIdEleccion() {
+  if (idEleccion) return idEleccion;
+  const data = await apiFetch(ENDPOINTS.proceso);
+  idEleccion = data?.data?.idEleccion ?? data?.idEleccion ?? data?.data?.id;
+  if (!idEleccion) {
+    console.warn('idEleccion no hallado, usando fallback 1. Data:', data);
+    idEleccion = 1;
+  }
+  return idEleccion;
+}
+
+async function fetchData() {
+  hideError();
+  setStatus('loading', 'Consultando ONPE…');
+  document.getElementById('lastUpdate').textContent = '…';
+
+  try {
+    const id = await getIdEleccion();
+    const [rawCand, rawTot] = await Promise.all([
+      apiFetch(ENDPOINTS.candidatos(id)),
+      apiFetch(ENDPOINTS.totales(id)),
+    ]);
+    procesarResultados(rawCand, rawTot);
+    setStatus('live', 'Datos actualizados');
+    document.getElementById('lastUpdate').textContent = nowStr();
+  } catch (err) {
+    setStatus('error', 'Error de conexión');
+    showError(`No se pudo obtener datos. Detalle: ${err.message}`);
+  }
+}
+
+// ── PROCESAR Y RENDERIZAR ────────────────────────────────────────────────────
+function procesarResultados(rawCand, rawTot) {
+  // La API puede devolver el array directamente o en .data
+  const candidatos = Array.isArray(rawCand) ? rawCand :
+                     Array.isArray(rawCand?.data) ? rawCand.data :
+                     Object.values(rawCand?.data ?? rawCand ?? {});
+
+  const totales = rawTot?.data ?? rawTot ?? {};
+
+  // Identificar candidatos por nombre (flexible)
+  let keiko = null, sanchez = null;
+  for (const c of candidatos) {
+    const n = (c.nombreCandidato ?? c.nombre ?? '').toUpperCase();
+    if (n.includes('FUJIMORI') || n.includes('KEIKO') || n.includes('FUERZA POPULAR')) keiko = c;
+    else if (n.includes('SANCHEZ') || n.includes('SÁNCHEZ') || n.includes('JUNTOS')) sanchez = c;
+  }
+
+  // Si solo hay 2 candidatos y no matchearon por nombre
+  if (!keiko && !sanchez && candidatos.length === 2) {
+    [keiko, sanchez] = candidatos;
+  }
+
+  if (!keiko || !sanchez) {
+    // Mostrar raw para debug
+    showError(`Candidatos no identificados. Respuesta: ${JSON.stringify(candidatos).substring(0,300)}`);
+    return;
+  }
+
+  const kPct   = parseFloat(keiko.porcentajeVotosValidos ?? keiko.pctVotosValidos ?? 0);
+  const sPct   = parseFloat(sanchez.porcentajeVotosValidos ?? sanchez.pctVotosValidos ?? 0);
+  const kVotos = parseInt(keiko.totalVotosValidos ?? keiko.votos ?? 0);
+  const sVotos = parseInt(sanchez.totalVotosValidos ?? sanchez.votos ?? 0);
+  const diff   = Math.abs(kVotos - sVotos);
+  const leader = kVotos > sVotos ? 'keiko' : 'sanchez';
+
+  // Totales
+  const actasProc = parseFloat(totales.actasContabilizadas ?? totales.porcentajeActas ?? 0);
+  const totalActas = parseInt(totales.totalActas ?? totales.cantidadActas ?? 0);
+  const totalVotos = kVotos + sVotos;
+
+  // ── UPDATE DOM ──
+  // Porcentajes y nombres
+  const kN = keiko.nombreCandidato ?? 'Keiko Fujimori';
+  const sN = sanchez.nombreCandidato ?? 'Roberto Sánchez';
+  document.getElementById('keikoName').textContent = kN.split('\n')[0];
+  document.getElementById('sanchezName').textContent = sN.split('\n')[0];
+  document.getElementById('keikoPct').textContent = fmtPct(kPct);
+  document.getElementById('sanchezPct').textContent = fmtPct(sPct);
+
+  // Barra de tensión
+  const total = kPct + sPct || 100;
+  document.getElementById('barKeiko').style.width = (kPct / total * 100) + '%';
+  document.getElementById('barSanchez').style.width = (sPct / total * 100) + '%';
+
+  document.getElementById('keikoVotos').textContent = fmt(kVotos) + ' votos';
+  document.getElementById('sanchezVotos').textContent = fmt(sVotos) + ' votos';
+
+  // Diferencia
+  const diffEl = document.getElementById('diffValue');
+  diffEl.textContent = fmt(diff);
+  diffEl.className = 'diff-value ' + (leader === 'keiko' ? 'keiko-leads' : 'sanchez-leads');
+  document.getElementById('diffSublabel').textContent =
+    `votos a favor de ${leader === 'keiko' ? kN.split('\n')[0] : sN.split('\n')[0]}`;
+
+  // Stats
+  document.getElementById('actasPct').textContent = actasProc ? actasProc.toFixed(3) + '%' : '—';
+  document.getElementById('totalActas').textContent = fmt(totalActas) || '—';
+  document.getElementById('keikoVotosAbs').textContent = fmt(kVotos);
+  document.getElementById('sanchezVotosAbs').textContent = fmt(sVotos);
+  document.getElementById('totalVotos').textContent = fmt(totalVotos);
+
+  // Historial
+  pushHistory({ time: nowStr(), kPct, sPct, diff, leader, actasProc });
+}
+
+// ── HISTORIAL ────────────────────────────────────────────────────────────────
+function pushHistory(entry) {
+  history.unshift(entry);
+  if (history.length > 50) history.pop();
+  renderHistory();
+}
+
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  document.getElementById('histCount').textContent = history.length + ' registro' + (history.length !== 1 ? 's' : '');
+
+  if (history.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px">Sin registros aún.</div>';
+    return;
+  }
+
+  list.innerHTML = history.map((e, i) => `
+    <div class="history-row" style="${i === 0 ? '' : ''}">
+      <span style="color:var(--muted)">${e.time}</span>
+      <span class="keiko-col">${fmtPct(e.kPct)}</span>
+      <span class="sanchez-col">${fmtPct(e.sPct)}</span>
+      <span class="diff-col" style="color:${e.leader==='keiko'?'var(--keiko)':'var(--sanchez)'}">${fmt(e.diff)}</span>
+    </div>
+  `).join('');
+}
+
+function clearHistory() {
+  history = [];
+  renderHistory();
+}
+
+// ── AUTO UPDATE ───────────────────────────────────────────────────────────────
+function toggleAuto() {
+  if (isAuto) stopAuto();
+  else startAuto();
+}
+
+function startAuto() {
+  const mins = parseFloat(document.getElementById('intervalInput').value) || 5;
+  const ms = mins * 60 * 1000;
+  isAuto = true;
+
+  document.getElementById('autoBtn').textContent = '⏹ Detener auto-actualización';
+  document.getElementById('autoBtn').className = 'btn btn-danger';
+  document.getElementById('countdownWrap').style.display = 'block';
+
+  fetchData();
+  startCountdown(ms);
+
+  autoTimer = setInterval(() => {
+    fetchData();
+    startCountdown(ms);
+  }, ms);
+}
+
+function stopAuto() {
+  isAuto = false;
+  clearInterval(autoTimer);
+  clearInterval(countdownInterval);
+  autoTimer = null;
+  document.getElementById('autoBtn').textContent = '▶ Iniciar auto-actualización';
+  document.getElementById('autoBtn').className = 'btn btn-secondary';
+  document.getElementById('countdownWrap').style.display = 'none';
+  document.getElementById('countdownLabel').textContent = 'Próxima en: —';
+}
+
+function startCountdown(totalMs) {
+  clearInterval(countdownInterval);
+  const bar = document.getElementById('countdownBar');
+  const label = document.getElementById('countdownLabel');
+  const start = Date.now();
+
+  bar.style.transition = 'none';
+  bar.style.width = '100%';
+
+  countdownInterval = setInterval(() => {
+    const elapsed = Date.now() - start;
+    const remaining = Math.max(0, totalMs - elapsed);
+    const pct = (remaining / totalMs) * 100;
+    const secs = Math.ceil(remaining / 1000);
+    const mins = Math.floor(secs / 60);
+    const s = secs % 60;
+
+    bar.style.transition = 'none';
+    bar.style.width = pct + '%';
+    label.textContent = `Próxima en: ${mins > 0 ? mins + 'm ' : ''}${s}s`;
+
+    if (remaining <= 0) clearInterval(countdownInterval);
+  }, 500);
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  setStatus('', 'Listo — haz clic en "Actualizar ahora"');
+});
+</script>
+</body>
+</html>
