@@ -1,0 +1,9 @@
+{
+  "keiko":   { "nombre": "Keiko Fujimori",  "partido": "Fuerza Popular",     "pct": null, "votos": null },
+  "sanchez": { "nombre": "Roberto Sánchez", "partido": "Juntos por el Perú", "pct": null, "votos": null },
+  "actasPct": null,
+  "totalActas": null,
+  "diff": null,
+  "fuente": "Pendiente primera ejecución",
+  "actualizadoEn": null
+}
