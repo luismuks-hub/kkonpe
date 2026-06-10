@@ -1,0 +1,114 @@
+name: Actualizar resultados ONPE
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # cada 5 minutos
+  workflow_dispatch:          # también se puede correr manualmente
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write         # necesario para hacer commit al repo
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Consultar API ONPE
+        run: |
+          python3 << 'PYEOF'
+          import urllib.request
+          import json
+          import sys
+          import ssl
+
+          BASE = 'https://resultadosegundavuelta.onpe.gob.pe/presentacion-backend'
+
+          HEADERS = {
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'es-PE,es;q=0.9',
+            'Cache-Control': 'no-cache',
+            'Origin': 'https://resultadosegundavuelta.onpe.gob.pe',
+            'Referer': 'https://resultadosegundavuelta.onpe.gob.pe/main/resumen',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-origin',
+          }
+
+          ctx = ssl.create_default_context()
+
+          def fetch(url):
+            req = urllib.request.Request(url, headers=HEADERS)
+            with urllib.request.urlopen(req, context=ctx, timeout=15) as r:
+              return json.loads(r.read().decode())
+
+          try:
+            # 1. Obtener idEleccion
+            proc = fetch(f'{BASE}/proceso/proceso-electoral-activo')
+            id_eleccion = (proc.get('data') or proc).get('idEleccion') or 1
+            print(f'idEleccion: {id_eleccion}')
+
+            # 2. Candidatos y totales en paralelo (secuencial en Python puro)
+            cand_raw = fetch(f'{BASE}/candidatos/candidatos-segunda-vuelta?idEleccion={id_eleccion}&tipoFiltro=eleccion')
+            tot_raw  = fetch(f'{BASE}/totales/totales-segunda-vuelta?idEleccion={id_eleccion}&tipoFiltro=eleccion')
+
+            candidatos = cand_raw if isinstance(cand_raw, list) else (cand_raw.get('data') or [])
+            totales    = tot_raw  if isinstance(tot_raw,  dict) else (tot_raw.get('data')  or {})
+
+            # 3. Identificar candidatos
+            keiko = sanchez = None
+            for c in candidatos:
+              nombre = (c.get('nombreCandidato') or c.get('nombre') or '').upper()
+              if 'FUJIMORI' in nombre or 'KEIKO' in nombre:
+                keiko = c
+              elif 'SANCHEZ' in nombre or 'SÁNCHEZ' in nombre or 'JUNTOS' in nombre:
+                sanchez = c
+
+            if not keiko or not sanchez:
+              raise ValueError(f'Candidatos no identificados. Raw: {json.dumps(candidatos)[:300]}')
+
+            def pct(c):  return float(c.get('porcentajeVotosValidos') or c.get('pctVotosValidos') or 0)
+            def vot(c):  return int(c.get('totalVotosValidos') or c.get('votos') or 0)
+
+            kPct = pct(keiko);   kVotos = vot(keiko)
+            sPct = pct(sanchez); sVotos = vot(sanchez)
+
+            resultado = {
+              'keiko':   { 'nombre': keiko.get('nombreCandidato','Keiko Fujimori'),   'partido': 'Fuerza Popular',      'pct': kPct, 'votos': kVotos },
+              'sanchez': { 'nombre': sanchez.get('nombreCandidato','Roberto Sánchez'),'partido': 'Juntos por el Perú',  'pct': sPct, 'votos': sVotos },
+              'actasPct':   float(totales.get('actasContabilizadas') or totales.get('porcentajeActas') or 0),
+              'totalActas': int(totales.get('totalActas') or totales.get('cantidadActas') or 0),
+              'diff': abs(kVotos - sVotos),
+              'fuente': 'ONPE API oficial',
+              'actualizadoEn': __import__('datetime').datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+            }
+
+            with open('resultados.json', 'w', encoding='utf-8') as f:
+              json.dump(resultado, f, ensure_ascii=False, indent=2)
+
+            print('✅ resultados.json guardado')
+            print(json.dumps(resultado, ensure_ascii=False, indent=2))
+
+          except Exception as e:
+            print(f'❌ Error: {e}', file=sys.stderr)
+            # Si hay un resultados.json previo, no lo pisamos — dejamos el último válido
+            import os
+            if not os.path.exists('resultados.json'):
+              with open('resultados.json', 'w') as f:
+                json.dump({'error': str(e), 'fuente': 'ONPE API'}, f)
+            sys.exit(0)   # exit 0 para no fallar el workflow
+          PYEOF
+
+      - name: Commit y push resultados.json
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add resultados.json
+          # Solo hacer commit si cambió algo
+          git diff --cached --quiet || git commit -m "feat: actualizar resultados ONPE $(date -u '+%H:%M UTC')"
+          git push
