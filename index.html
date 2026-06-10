@@ -598,9 +598,9 @@
 
 <script>
 // ── CONFIG ──────────────────────────────────────────────────────────────────
-// Una sola llamada a nuestra Netlify Function que scrapeqa RPP/ElComercio
-// y devuelve JSON limpio. Sin bloqueos de ONPE.
-const FN = '/.netlify/functions/onpe';
+// Lee resultados.json — generado por GitHub Actions cada 5 min
+// consultando directo la API oficial de ONPE. Sin proxies, sin scraping.
+const JSON_URL = '/resultados.json';
 
 // ── STATE ───────────────────────────────────────────────────────────────────
 let autoTimer = null;
@@ -633,20 +633,26 @@ function hideError() {
 // ── FETCH ────────────────────────────────────────────────────────────────────
 async function fetchData() {
   hideError();
-  setStatus('loading', 'Consultando…');
+  setStatus('loading', 'Cargando resultados…');
   document.getElementById('lastUpdate').textContent = '…';
 
   try {
-    const r = await fetch(FN);
+    // Cache-bust para siempre obtener la versión más reciente
+    const r = await fetch(JSON_URL + '?t=' + Date.now());
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
     if (data.error) throw new Error(data.error);
     renderResultados(data);
-    setStatus('live', `Datos actualizados · vía ${data.fuente || 'scraper'}`);
-    document.getElementById('lastUpdate').textContent = nowStr();
+
+    // Mostrar cuándo fue actualizado por GitHub Actions
+    const cuando = data.actualizadoEn
+      ? new Date(data.actualizadoEn).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'}) + ' UTC'
+      : nowStr();
+    setStatus('live', `ONPE API oficial · ${data.fuente || ''}`);
+    document.getElementById('lastUpdate').textContent = cuando;
   } catch (err) {
-    setStatus('error', 'Error de conexión');
-    showError(`No se pudo obtener datos. Detalle: ${err.message}`);
+    setStatus('error', 'Error al cargar datos');
+    showError(`No se pudo cargar resultados.json. Detalle: ${err.message}`);
   }
 }
 
